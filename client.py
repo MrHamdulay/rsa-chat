@@ -2,75 +2,112 @@ import rsa
 import sys
 import socket
 import threading
+from time import sleep
+import errno
+import Queue
+
+from protocol import Protocol
 
 class Communicator(threading.Thread):
     def __init__(self, name):
         threading.Thread.__init__(self)
         self.public_key, self.private_key = rsa.generate_keys()
+        print 'public', self.public_key
+        print 'private', self.private_key
+
         self.public_keys = {}
         self.name = name
+        self.daemon = True
+        self.protocol = Protocol()
+        self.send_queue = Queue.Queue()
 
     def init_socket(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(('', 0))
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect(('localhost', 9000))
+        self.sock.setblocking(False)
         print 'connected'
 
     def send_raw(self, message):
-        print 'sending'
-        data = '%d\0%s\n' % (len(message), message)
-        self.sock.sendto(data, ('<broadcast>', 1000))
+        print 'sending', message
+        res = self.sock.sendall(message)
+        print 'send', res
 
-    def send_hello(self, name, public_key):
+    def send_hello(self, name):
         # name, d, bits
-        self.send_raw('helo %s %d %d' % (name, self.public_key[0], self.public_key[1]))
+        self.send_raw(self.protocol.gen_hello(name, self.public_key))
 
     def send_to(self, to, message):
         if to not in self.public_keys:
+            print self.public_keys
             print 'I do not know who %s is ' % to
             return
         public_key = self.public_keys[to]
-        data = rsa.encrypt(message, public_key)
-        self.send_raw('mesg %s %s %s' % (self.name, to, data))
+        self.send_raw(self.protocol.gen_mesg(self.name, to, message, public_key))
 
-    def parse(self, message):
-        length_index = message.find('\0')
-        length = int(message[:length_index])
-        m = message[length_index+1:]
-        if not len(m) == length:
-            return False
-        ms = m.split(' ')
-        info = ms[0]
-        data = ms[1:]
+    def process(self, parsed):
+        if parsed[0] == 'helo':
+            print 'parsed', parsed
+            name = parsed[1][0]
+            public_key = parsed[1][1:]
+            print 'hello from', name
+            print 'public key', public_key
+            self.public_keys[name] = public_key
+        elif parsed[0] == 'mesg':
+            from_ = parsed[1][0]
+            to = parsed[1][1]
+            ciphertext = map(int, parsed[1][2:])
+            plaintext = rsa.decrypt(ciphertext, self.private_key)
+            print from_, plaintext
 
-        if type == 'hello':
-            self.public_keys[data[0]] = data[1:]
-        elif type == 'mesg' and data[1] == self.name:
-            print '%s says: %s' % (data[0], rsa.decrypt(data[2], self.private_key))
-        return True
+    def handle_outbox(self):
+        try:
+            message_to_send = self.send_queue.get(False)
+            print message_to_send
+            self.send_to(*message_to_send)
+        except Queue.Empty, e:
+            pass
+
+    def handle_socket(self):
+        try:
+            piece = self.sock.recv(1000000)
+        except socket.error, e:
+            if e.args[0] == errno.EAGAIN or e.args[0] == errno.WOULDBLOCK:
+                sleep(0.1)
+                return
+            else:
+                raise
+        self._data += piece
+        result = self.protocol.parse(self._data)
+        if result:
+            self.process(result)
+            self._data = ''
+
 
 
     def run(self):
+        print 'eh'
         self.init_socket()
+        self.send_hello(self.name)
 
-        data = ''
-        print 'network thread begun'
+        self._data = ''
         while True:
-            piece, addr = self.sock.recvfrom(1000000)
-            data += piece
-            if self.parse(data):
-                data = ''
+            self.handle_outbox()
+            self.handle_socket()
 
-name = 'yaseen'#raw_input('What is your name: ')
+
+name = raw_input('What is your name: ')
 communicator = Communicator(name)
 communicator.start()
 
 while True:
     inp = raw_input('> ')
-    if not inp:
+    if inp.strip() == 'exit':
         sys.exit(0)
-    if ' ' not in inp:
-        print 'Please address a person in your message'
+    a = raw_input('> ').split(' ', 1)
+    if len(a) != 2:
         continue
-    person, message = raw_input('> ').split(' ', 1)
-    communicator.send_to(person, message)
+    person, message = a
+    print 'attempting...'
+    communicator.send_queue.put((person, message))
+    print 'message on queue'
+    #communicator.send_to(person, message)
