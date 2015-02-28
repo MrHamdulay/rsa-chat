@@ -141,23 +141,24 @@ class ChatThread(threading.Thread):
             self.send_queue.put((person, message), True)
 
 
-print '''Welcome to Yaseen's insecure secure chat implementation.
+if __name__ == '__main__':
+    print '''Welcome to Yaseen's insecure secure chat implementation.
 
-In order to send a message to everyone in the room start your message with
-"g" and then a space.
+    In order to send a message to everyone in the room start your message with
+    "g" and then a space.
 
-To send a private message start your message with the person's name.
-'''
+    To send a private message start your message with the person's name.
+    '''
 
-name = ''
-while not name:
-    name = raw_input('What is your name: ').strip()
-    if ' ' in name or name == 'g':
-        print 'your name cannot have spaces or be "g"'
-        name = ''
+    name = ''
+    while not name:
+        name = raw_input('What is your name: ').strip()
+        if ' ' in name or name == 'g':
+            print 'your name cannot have spaces or be "g"'
+            name = ''
 
-chat_thread = ChatThread(name)
-chat_thread.start()
-sleep(0.5)
-chat_thread.ui_thread()
-print 'quit'
+    chat_thread = ChatThread(name)
+    chat_thread.start()
+    sleep(0.5)
+    chat_thread.ui_thread()
+    print 'quit'
