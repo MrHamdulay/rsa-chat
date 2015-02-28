@@ -104,10 +104,14 @@ class ChatThread(threading.Thread):
             else:
                 raise
         self._data += piece
-        result = self.protocol.parse(self._data)
-        if result:
-            self.process(result)
-            self._data = ''
+        parts = self._data.split('\n')
+        for part in parts:
+            if not part:
+                continue
+            result = self.protocol.parse(part)
+            if result:
+                self.process(result)
+                self._data = ''
 
     def run(self):
         self.init_socket()
@@ -124,11 +128,13 @@ class ChatThread(threading.Thread):
     def ui_thread(self):
         while True:
             # user input
-            inp = raw_input('> ').strip()
+            inp = raw_input(self.name+'> ').strip()
             if inp.strip() == 'exit':
                 sys.exit(0)
             a = inp.split(' ', 1)
             if len(a) != 2:
+                print 'who are you sending this message to? if everyone prefix with g'
+                print 'the following people are in the room: ' + ', '.join(self.public_keys.keys())
                 continue
             person, message = a
             # send message

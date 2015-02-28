@@ -22,9 +22,6 @@ class Protocol:
     def parse(self, data):
         if len(data) == 0:
             return False
-        if '\n' not in data:
-            return False
-        data = data[:data.find('\n')]
         ms = data.split(' ')
         type = ms[0]
         data = ms[1:]
