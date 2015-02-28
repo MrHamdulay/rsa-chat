@@ -17,7 +17,6 @@ class ServerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 class RequestHandler(SocketServer.BaseRequestHandler):
     def handle_helo(self, result):
-        print 'doing helo thing'
         global public_keys, sockets
 
         self.name = name = result[1]
@@ -37,7 +36,6 @@ class RequestHandler(SocketServer.BaseRequestHandler):
             # why would we send someone their own keys?
             if name == other_name:
                 continue
-            print other_name
             self.request.sendall(protocol.gen_hello(
                 other_name, other_public_key))
             sockets[other_name].sendall(self.buffer)

@@ -27,7 +27,6 @@ class Protocol:
         ms = data.split(' ')
         type = ms[0]
         data = ms[1:]
-        print type
 
         if type == 'helo':
             return type, data

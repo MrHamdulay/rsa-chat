@@ -35,7 +35,13 @@ class Communicator(threading.Thread):
         self.send_raw(self.protocol.gen_hello(name, self.public_key))
 
     def send_to(self, to, message):
-        if to not in self.public_keys:
+        if to == 'g':
+            for name in self.public_keys:
+                if name == self.name:
+                    continue
+                self.send_to(name, message)
+            return
+        elif to not in self.public_keys:
             print 'I do not know who %s is ' % to
             return
         public_key = self.public_keys[to]
@@ -114,12 +120,19 @@ class Communicator(threading.Thread):
             self.send_queue.put((person, message), True)
 
 
+print '''Welcome to Yaseen's insecure secure chat implementation.
+
+In order to send a message to everyone in the room start your message with
+"g" and then a space.
+
+To send a private message start your message with the person's name.
+'''
 
 name = ''
 while not name:
     name = raw_input('What is your name: ').strip()
-    if ' ' in name:
-        print 'your name cannot have spaces'
+    if ' ' in name or name == 'g':
+        print 'your name cannot have spaces or be "g"'
         name = ''
 communicator = Communicator(name)
 communicator.start()
