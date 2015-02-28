@@ -2,15 +2,15 @@ import math
 import random
 
 def pow_mod(g, e, p):
-    return (g**e)%p
+    oe = e
     result = 1
-    while e:
+    g %= p
+    while e > 0:
         if e & 1:
             result = (result *g)%p
-        g = (g*g)%p
         e >>= 1
+        g = (g*g)%p
     result %= p
-    assert (g**e)%p == result
     return result
 
 def gcd(a, b):
@@ -61,15 +61,15 @@ def encrypt(plaintext, public_key):
     bits = public_key[2]
     #assert bits > 8
     b = map(ord, plaintext)
-    print 'plaintext', b
-    return map(lambda x: encrypt_byte(x, public_key), b)
+    result = map(lambda x: encrypt_byte(x, public_key), b)
+    return result
 
 def decrypt_byte(byte, private_key):
     return pow_mod(byte, private_key[1], private_key[0])
 
 def decrypt(ciphertext, private_key):
     b =  map(lambda x: decrypt_byte(x, private_key), ciphertext)
-    plaintext = ''.join(map(chr, b))
+    plaintext = ''.join(map(unichr, b))
     return plaintext
 
 def generate_keys():

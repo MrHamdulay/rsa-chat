@@ -28,9 +28,7 @@ class Communicator(threading.Thread):
         print 'connected'
 
     def send_raw(self, message):
-        print 'sending', message
         res = self.sock.sendall(message)
-        print 'send', res
 
     def send_hello(self, name):
         # name, d, bits
@@ -38,31 +36,35 @@ class Communicator(threading.Thread):
 
     def send_to(self, to, message):
         if to not in self.public_keys:
-            print self.public_keys
             print 'I do not know who %s is ' % to
             return
         public_key = self.public_keys[to]
         self.send_raw(self.protocol.gen_mesg(self.name, to, message, public_key))
 
+    def handle_helo(self, name, public_key):
+        self.public_keys[name] = public_key
+        print name, 'has connected'
+
+    def handle_mesg(self, from_, to, ciphertext):
+        if to != self.name:
+            return
+        plaintext = rsa.decrypt(ciphertext, self.private_key)
+        print from_,':', plaintext
+
     def process(self, parsed):
         if parsed[0] == 'helo':
-            print 'parsed', parsed
             name = parsed[1][0]
             public_key = parsed[1][1:]
-            print 'hello from', name
-            print 'public key', public_key
-            self.public_keys[name] = public_key
+            self.handle_helo(name, public_key)
         elif parsed[0] == 'mesg':
             from_ = parsed[1][0]
             to = parsed[1][1]
             ciphertext = map(int, parsed[1][2:])
-            plaintext = rsa.decrypt(ciphertext, self.private_key)
-            print from_, plaintext
+            self.handle_mesg(from_, to, ciphertext)
 
     def handle_outbox(self):
         try:
             message_to_send = self.send_queue.get(False)
-            print message_to_send
             self.send_to(*message_to_send)
         except Queue.Empty, e:
             pass
@@ -85,7 +87,6 @@ class Communicator(threading.Thread):
 
 
     def run(self):
-        print 'eh'
         self.init_socket()
         self.send_hello(self.name)
 
@@ -94,20 +95,22 @@ class Communicator(threading.Thread):
             self.handle_outbox()
             self.handle_socket()
 
+    def ui_thread(self):
+        while True:
+            inp = raw_input('> ').strip()
+            if inp.strip() == 'exit':
+                sys.exit(0)
+            a = inp.split(' ', 1)
+            if len(a) != 2:
+                continue
+            person, message = a
+            self.send_queue.put((person, message), True)
+
+
 
 name = raw_input('What is your name: ')
 communicator = Communicator(name)
 communicator.start()
-
-while True:
-    inp = raw_input('> ')
-    if inp.strip() == 'exit':
-        sys.exit(0)
-    a = raw_input('> ').split(' ', 1)
-    if len(a) != 2:
-        continue
-    person, message = a
-    print 'attempting...'
-    communicator.send_queue.put((person, message))
-    print 'message on queue'
-    #communicator.send_to(person, message)
+sleep(0.5)
+communicator.ui_thread()
+print 'quit'
