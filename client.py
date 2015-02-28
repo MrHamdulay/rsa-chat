@@ -25,7 +25,7 @@ class ChatThread(threading.Thread):
 
     def init_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect(('localhost', 9000))
+        self.sock.connect(('hamdulay.co.za', 9000))
         self.sock.setblocking(False)
         print 'connected'
 
