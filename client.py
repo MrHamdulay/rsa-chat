@@ -115,7 +115,12 @@ class Communicator(threading.Thread):
 
 
 
-name = raw_input('What is your name: ')
+name = ''
+while not name:
+    name = raw_input('What is your name: ').strip()
+    if ' ' in name:
+        print 'your name cannot have spaces'
+        name = ''
 communicator = Communicator(name)
 communicator.start()
 sleep(0.5)
