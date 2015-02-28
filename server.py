@@ -2,6 +2,7 @@ import socket
 import threading
 import SocketServer
 from protocol import Protocol
+from time import time
 
 protocol = Protocol()
 global_lock = threading.Lock()
@@ -9,12 +10,23 @@ public_keys = {}
 sockets = {}
 
 class ServerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    ''' Server that doesn't close requests after we handle messages '''
+    ''' Server that doesn't close requests after we handle messages.
+        Logs all server messages to file'''
     daemon = True
+
+    def __init__(self, *args, **kwargs):
+        SocketServer.TCPServer.__init__(self, *args, **kwargs)
+        self.log_file = open('server.log', 'a')
+
     def close_request(self, request):
         pass
     def shutdown_request(self, request):
         pass
+
+    def log_client(self, socket, line):
+        line = '%s [%s]: %s\n' % (time(), socket.getpeername(), str(line))
+        self.log_file.write(line)
+        self.log_file.flush()
 
 class ChatRequestHandler(SocketServer.BaseRequestHandler):
     ''' Handle client incoming messages, all we do pretty much is
@@ -61,6 +73,7 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
 
     def handle_disconnection(self):
         ''' when a client disconnects free all the resources'''
+        self.server.log_client(self.request, self.name+' has disconnected')
         global sockets
         global_lock.acquire()
         if self.name in sockets:
@@ -77,6 +90,7 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
 
 
     def on_parsed_data(self, data):
+        self.server.log_client(self.request, data)
         global_lock.acquire()
         # find the handler method for this request
         if hasattr(self, 'handle_'+data[0]):
