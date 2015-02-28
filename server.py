@@ -52,8 +52,10 @@ class RequestHandler(SocketServer.BaseRequestHandler):
     def handle_disconnection(self):
         global sockets
         global_lock.acquire()
-        del sockets[self.name]
-        del public_keys[self.name]
+        if self.name in sockets:
+            del sockets[self.name]
+        if self.name in public_keys:
+            del public_keys[self.name]
         for name, sock in sockets.iteritems():
             if name == self.name:
                 continue
