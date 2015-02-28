@@ -19,6 +19,10 @@ class ServerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 class ChatRequestHandler(SocketServer.BaseRequestHandler):
     ''' Handle client incoming messages, all we do pretty much is
         distribute messages between client sockets'''
+    def __init__(self, request, client_address, server):
+        self.name = None
+        self.buffer = bytes()
+        SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
 
     def handle_helo(self, result):
         ''' hello handler from clients '''
@@ -84,11 +88,6 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
         global_lock.release()
 
     def handle(self):
-        # i know, the fuck?
-        if not hasattr(self, 'buffer'):
-            self.name = None
-            self.buffer = bytes()
-
         try:
             while True:
                 self.buffer += self.request.recv(4096)
