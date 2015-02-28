@@ -41,6 +41,7 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
         global public_keys, sockets
 
         self.name = name = result[1]
+        print self.name, 'has joined'
         self.version = int(result[0])
         # store this clients socket
         sockets[name] = self.request
