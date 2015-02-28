@@ -2,6 +2,7 @@ import rsa
 
 class Protocol:
     version = 1
+
     def gen_hello(self, name, public_key):
         return self.gen('helo %d %s %d %d %d' % (
             Protocol.version,

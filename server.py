@@ -9,20 +9,27 @@ public_keys = {}
 sockets = {}
 
 class ServerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    ''' Server that doesn't close requests after we handle messages '''
     daemon = True
     def close_request(self, request):
         pass
     def shutdown_request(self, request):
         pass
 
-class RequestHandler(SocketServer.BaseRequestHandler):
+class ChatRequestHandler(SocketServer.BaseRequestHandler):
+    ''' Handle client incoming messages, all we do pretty much is
+        distribute messages between client sockets'''
+
     def handle_helo(self, result):
+        ''' hello handler from clients '''
         global public_keys, sockets
 
         self.name = name = result[1]
         self.version = int(result[0])
+        # store this clients socket
         sockets[name] = self.request
         public_key = result[2:]
+        # ensure client is using latest vesrion
         if self.version != Protocol.version:
             self.request.sendall(protocol.gen_mesg(
                 'God',
@@ -42,18 +49,22 @@ class RequestHandler(SocketServer.BaseRequestHandler):
         public_keys[name] = public_key
 
     def handle_mesg(self, result):
+        ''' distribute all messages to everyone (purposefully insecure '''
         global sockets
         # let's broadcast to everyone (purposefully insecure)
         for name, sock in sockets.iteritems():
             sock.sendall(self.buffer)
 
     def handle_disconnection(self):
+        ''' when a client disconnects free all the resources'''
         global sockets
         global_lock.acquire()
         if self.name in sockets:
             del sockets[self.name]
         if self.name in public_keys:
             del public_keys[self.name]
+
+        # tell all other connected clients that this user has disconnected
         for name, sock in sockets.iteritems():
             if name == self.name:
                 continue
@@ -63,9 +74,11 @@ class RequestHandler(SocketServer.BaseRequestHandler):
 
     def on_parsed_data(self, data):
         global_lock.acquire()
+        # find the handler method for this request
         if hasattr(self, 'handle_'+data[0]):
             getattr(self, 'handle_'+data[0])(data[1])
         else:
+            # we couldn't find a handler message for this type of message
             print 'i do not know what', data[0], 'is'
 
         global_lock.release()
@@ -79,10 +92,11 @@ class RequestHandler(SocketServer.BaseRequestHandler):
         try:
             while True:
                 self.buffer += self.request.recv(4096)
+                # parse raw data into nice arrays
                 result = protocol.parse(self.buffer)
                 if not result:
                     return
-
+                # handle this message
                 self.on_parsed_data(result)
 
                 self.buffer = bytes()
@@ -95,7 +109,7 @@ class RequestHandler(SocketServer.BaseRequestHandler):
         pass
 
 print 'starting server'
-server = ServerServer(('0.0.0.0', 9000), RequestHandler)
+server = ServerServer(('0.0.0.0', 9000), ChatRequestHandler)
 try:
     server.serve_forever()
 finally:

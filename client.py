@@ -8,7 +8,8 @@ import Queue
 
 from protocol import Protocol
 
-class Communicator(threading.Thread):
+class ChatThread(threading.Thread):
+
     def __init__(self, name):
         threading.Thread.__init__(self)
         self.public_key, self.private_key = rsa.generate_keys()
@@ -19,6 +20,7 @@ class Communicator(threading.Thread):
         self.name = name
         self.daemon = True
         self.protocol = Protocol()
+        # queue that goes between input thread and network thread
         self.send_queue = Queue.Queue()
 
     def init_socket(self):
@@ -31,11 +33,15 @@ class Communicator(threading.Thread):
         res = self.sock.sendall(message)
 
     def send_hello(self, name):
+        ''' send "hello" message to server, tell them my name and public key '''
         # name, d, bits
         self.send_raw(self.protocol.gen_hello(name, self.public_key))
 
     def send_to(self, to, message):
+        ''' send an encrypted message to someone '''
+        # if we're sending a global message
         if to == 'g':
+            # send to everyone except ourselves
             for name in self.public_keys:
                 if name == self.name:
                     continue
@@ -48,10 +54,12 @@ class Communicator(threading.Thread):
         self.send_raw(self.protocol.gen_mesg(self.name, to, message, public_key))
 
     def handle_helo(self, name, public_key):
+        ''' we have received a hello from someone '''
         self.public_keys[name] = public_key
-        print name, 'has connected'
+        print name, 'has joined the room'
 
     def handle_mesg(self, from_, to, ciphertext):
+        ''' someone has sent a message to someone '''
         if to != self.name:
             return
         plaintext = rsa.decrypt(ciphertext, self.private_key)
@@ -62,6 +70,8 @@ class Communicator(threading.Thread):
         del self.public_keys[name]
 
     def process(self, parsed):
+        ''' given some raw data, figure out what it's
+            about and return it nicely formatted '''
         if parsed[0] == 'helo':
             name = parsed[1][1]
             public_key = parsed[1][2:]
@@ -75,6 +85,7 @@ class Communicator(threading.Thread):
             self.handle_bye(parsed[1])
 
     def handle_outbox(self):
+        ''' check if we have a message in our send queue '''
         try:
             message_to_send = self.send_queue.get(False)
             self.send_to(*message_to_send)
@@ -82,9 +93,11 @@ class Communicator(threading.Thread):
             pass
 
     def handle_socket(self):
+        ''' check if the server has said something '''
         try:
             piece = self.sock.recv(1000000)
         except socket.error, e:
+            # there's no data, wait a little bit
             if e.args[0] == errno.EAGAIN or e.args[0] == errno.WOULDBLOCK:
                 sleep(0.1)
                 return
@@ -96,8 +109,6 @@ class Communicator(threading.Thread):
             self.process(result)
             self._data = ''
 
-
-
     def run(self):
         self.init_socket()
         print 'sending public key to everyone'
@@ -105,11 +116,14 @@ class Communicator(threading.Thread):
 
         self._data = ''
         while True:
+            # check outbox
             self.handle_outbox()
+            # check server inbox
             self.handle_socket()
 
     def ui_thread(self):
         while True:
+            # user input
             inp = raw_input('> ').strip()
             if inp.strip() == 'exit':
                 sys.exit(0)
@@ -117,6 +131,7 @@ class Communicator(threading.Thread):
             if len(a) != 2:
                 continue
             person, message = a
+            # send message
             self.send_queue.put((person, message), True)
 
 
@@ -134,8 +149,9 @@ while not name:
     if ' ' in name or name == 'g':
         print 'your name cannot have spaces or be "g"'
         name = ''
-communicator = Communicator(name)
-communicator.start()
+
+chat_thread = ChatThread(name)
+chat_thread.start()
 sleep(0.5)
-communicator.ui_thread()
+chat_thread.ui_thread()
 print 'quit'

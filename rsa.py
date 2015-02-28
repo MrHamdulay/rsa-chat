@@ -2,6 +2,7 @@ import math
 import random
 
 def pow_mod(g, e, p):
+    ''' calculate (g**e)%p efficiently '''
     oe = e
     result = 1
     g %= p
@@ -14,11 +15,14 @@ def pow_mod(g, e, p):
     return result
 
 def gcd(a, b):
+    ''' return the greatest common divisor between a and b '''
     if b == 0:
         return a
     return gcd(b, a % b)
 
 def inverse(a, n):
+    ''' given a, n find an e s.t. a**n**e == a
+        uses extended euclidean algorithm straight off wikipedia'''
     t = 0
     newt = 1
     r = n
@@ -38,6 +42,7 @@ def inverse(a, n):
 
 
 def sieve(size):
+    ''' prime size of length "size" . pretty naive method '''
     s = [True] * size
     s[1] = False
     s[0] = False
@@ -52,14 +57,13 @@ def sieve(size):
             yield i
 
 all_primes = list(sieve(1000000))
-stronger_primes = all_primes[100:500]
+stronger_primes = all_primes[3000:]
 
 def encrypt_byte(byte, public_key):
     return pow_mod(byte, public_key[1], public_key[0])
 
 def encrypt(plaintext, public_key):
-    bits = public_key[2]
-    #assert bits > 8
+    ''' encrypt some plaintext '''
     b = map(ord, plaintext)
     result = map(lambda x: encrypt_byte(x, public_key), b)
     return result
@@ -68,11 +72,13 @@ def decrypt_byte(byte, private_key):
     return pow_mod(byte, private_key[1], private_key[0])
 
 def decrypt(ciphertext, private_key):
+    ''' decrypt ciphertext '''
     b =  map(lambda x: decrypt_byte(x, private_key), ciphertext)
     plaintext = ''.join(map(unichr, b))
     return plaintext
 
 def generate_keys():
+    ''' generate an rsa public, private key pair '''
     p = random.choice(stronger_primes)
     q = random.choice(stronger_primes)
     n = p * q
@@ -95,6 +101,7 @@ def generate_keys():
     return public_key, private_key
 
 if __name__ == '__main__':
+    # run a basic test
     public_key, private_key = generate_keys()
     print 'public key', public_key
     print 'private key', private_key
