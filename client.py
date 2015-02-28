@@ -12,8 +12,8 @@ class Communicator(threading.Thread):
     def __init__(self, name):
         threading.Thread.__init__(self)
         self.public_key, self.private_key = rsa.generate_keys()
-        print 'public', self.public_key
-        print 'private', self.private_key
+        print 'public key', self.public_key
+        print 'private key', self.private_key
 
         self.public_keys = {}
         self.name = name
@@ -51,16 +51,22 @@ class Communicator(threading.Thread):
         plaintext = rsa.decrypt(ciphertext, self.private_key)
         print from_,':', plaintext
 
+    def handle_bye(self, name):
+        print name, 'has left the room'
+        del self.public_keys[name]
+
     def process(self, parsed):
         if parsed[0] == 'helo':
-            name = parsed[1][0]
-            public_key = parsed[1][1:]
+            name = parsed[1][1]
+            public_key = parsed[1][2:]
             self.handle_helo(name, public_key)
         elif parsed[0] == 'mesg':
             from_ = parsed[1][0]
             to = parsed[1][1]
             ciphertext = map(int, parsed[1][2:])
             self.handle_mesg(from_, to, ciphertext)
+        elif parsed[0] == 'bye':
+            self.handle_bye(parsed[1])
 
     def handle_outbox(self):
         try:
@@ -88,6 +94,7 @@ class Communicator(threading.Thread):
 
     def run(self):
         self.init_socket()
+        print 'sending public key to everyone'
         self.send_hello(self.name)
 
         self._data = ''

@@ -20,9 +20,17 @@ class RequestHandler(SocketServer.BaseRequestHandler):
         print 'doing helo thing'
         global public_keys, sockets
 
-        self.name = name = result[0]
+        self.name = name = result[1]
+        self.version = int(result[0])
         sockets[name] = self.request
-        public_key = result[1:]
+        public_key = result[2:]
+        if self.version != Protocol.version:
+            self.request.sendall(protocol.gen_mesg(
+                'God',
+                self.name,
+                'Your client is out of date, please update',
+                public_key))
+            return
 
         # let's tell this person all the public keys we know
         for other_name, other_public_key in public_keys.iteritems():
@@ -40,6 +48,18 @@ class RequestHandler(SocketServer.BaseRequestHandler):
         # let's broadcast to everyone (purposefully insecure)
         for name, sock in sockets.iteritems():
             sock.sendall(self.buffer)
+
+    def handle_disconnection(self):
+        global sockets
+        global_lock.acquire()
+        del sockets[self.name]
+        del public_keys[self.name]
+        for name, sock in sockets.iteritems():
+            if name == self.name:
+                continue
+            sock.sendall(protocol.gen_bye(self.name))
+        global_lock.release()
+
 
     def on_parsed_data(self, data):
         global_lock.acquire()
@@ -68,13 +88,14 @@ class RequestHandler(SocketServer.BaseRequestHandler):
                 self.buffer = bytes()
         finally:
             print self.name, 'has disconnected'
+            self.handle_disconnection()
 
     def finish(self):
         ''' overload to prevent socketserver from closing socket on disconnect '''
         pass
 
 print 'starting server'
-server = ServerServer(('', 9000), RequestHandler)
+server = ServerServer(('0.0.0.0', 9000), RequestHandler)
 try:
     server.serve_forever()
 finally:
