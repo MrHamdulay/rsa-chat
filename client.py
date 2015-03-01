@@ -2,7 +2,7 @@ import rsa
 import sys
 import socket
 import threading
-from time import sleep
+from time import sleep, time
 import errno
 import Queue
 
@@ -16,6 +16,7 @@ class ChatThread(threading.Thread):
         print 'public key', self.public_key
         print 'private key', self.private_key
 
+        self._last_ping = 0
         self.public_keys = {}
         self.name = name
         self.daemon = True
@@ -98,7 +99,7 @@ class ChatThread(threading.Thread):
             piece = self.sock.recv(1000000)
         except socket.error, e:
             # there's no data, wait a little bit
-            if e.args[0] == errno.EAGAIN or e.args[0] == errno.WOULDBLOCK:
+            if e.args[0] == errno.EAGAIN or e.args[0] == errno.EWOULDBLOCK:
                 sleep(0.1)
                 return
             else:
@@ -113,6 +114,11 @@ class ChatThread(threading.Thread):
                 self.process(result)
                 self._data = ''
 
+    def send_ping(self):
+        if time() - 30 > self._last_ping:
+            self._last_ping = time()
+            self.sock.sendall('ping ping')
+
     def run(self):
         self.init_socket()
         print 'sending public key to everyone'
@@ -124,6 +130,7 @@ class ChatThread(threading.Thread):
             self.handle_outbox()
             # check server inbox
             self.handle_socket()
+            self.send_ping()
 
     def ui_thread(self):
         while True:

@@ -89,6 +89,9 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
             sock.sendall(protocol.gen_bye(self.name))
         global_lock.release()
 
+    def handle_ping(self, result):
+        self.request.sendall('pong pong')
+
 
     def on_parsed_data(self, data):
         self.server.log_client(self.request, data)

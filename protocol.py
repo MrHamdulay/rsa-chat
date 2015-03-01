@@ -2,6 +2,7 @@ import rsa
 
 class Protocol:
     version = 1
+    accepted = ['mesg', 'ping', 'pong']
 
     def gen_hello(self, name, public_key):
         return self.gen('helo %d %s %d %d %d' % (
@@ -29,7 +30,7 @@ class Protocol:
         if type == 'helo':
             return type, data
             self.public_keys[data[0]] = data[1:]
-        elif type == 'mesg':
+        elif type in Protocol.accepted:
             return type, data
         elif type == 'bye':
             return type, data[0]
