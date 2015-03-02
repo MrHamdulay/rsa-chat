@@ -25,8 +25,9 @@ class ChatThread(threading.Thread):
         self.send_queue = Queue.Queue()
 
     def init_socket(self):
+        print 'connecting... please wait'
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect(('hamdulay.co.za', 9000))
+        self.sock.connect(('hamdulay.co.za', 9001))
         self.sock.setblocking(False)
         print 'connected'
 

@@ -126,7 +126,7 @@ class ChatRequestHandler(SocketServer.BaseRequestHandler):
         pass
 
 print 'starting server'
-server = ServerServer(('0.0.0.0', 9000), ChatRequestHandler)
+server = ServerServer(('0.0.0.0', 9001), ChatRequestHandler)
 try:
     server.serve_forever()
 finally:

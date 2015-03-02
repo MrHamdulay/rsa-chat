@@ -56,8 +56,8 @@ def sieve(size):
         if primeness:
             yield i
 
-all_primes = list(sieve(1000000))
-stronger_primes = all_primes[3000:]
+all_primes = list(sieve(10000))
+stronger_primes = all_primes[300:]
 
 def encrypt_byte(byte, public_key):
     return pow_mod(byte, public_key[1], public_key[0])
